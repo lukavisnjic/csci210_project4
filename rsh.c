@@ -30,7 +30,19 @@ void sendmsg (char *user, char *target, char *msg) {
 	// TODO:
 	// Send a request to the server to send the message (msg) to the target user (target)
 	// by creating the message structure and writing it to server's FIFO
+	struct message m;
+    strcpy(m.source, user);
+    strcpy(m.target, target);
+    strcpy(m.msg, msg);
 
+    int fidscrpt = open("serverFIFO", O_WRONLY);
+    if (fidscrpt < 0) {
+        perror("sendmsg: open");
+        return;
+    }
+
+    write(fidscrpt, &m, sizeof(m));
+    close(fidscrpt);
 
 
 
@@ -48,13 +60,25 @@ void* messageListener(void *arg) {
 	// following format
 	// Incoming message from [source]: [message]
 	// put an end of line at the end of the message
+	char fifoName[50];
+    snprintf(fifoName, sizeof(fifoName), "%s", uName);
 
+    int fidscrpt = open(fifoName, O_RDONLY);
+    if (fidscrpt < 0) {
+        perror("messageListener: open");
+        pthread_exit((void*)0);
+    }
 
+    struct message m;
+    while (1) {
+        if (read(fidscrpt, &m, sizeof(m)) > 0) {
+            printf("Incoming message from %s: %s\n", m.source, m.msg);
+            fflush(stdout);
+        }
+    }
 
-
-
-
-	pthread_exit((void*)0);
+    close(fidscrpt);
+    pthread_exit((void*)0);
 }
 
 int isAllowed(const char*cmd) {
@@ -85,7 +109,8 @@ int main(int argc, char **argv) {
 
     // TODO:
     // create the message listener thread
-
+	pthread_t tid;
+	pthread_create(&tid, NULL, messageListener, NULL);
 
 
 
@@ -124,14 +149,26 @@ int main(int argc, char **argv) {
 		// if no message is specified, you should print the followingA
  		// printf("sendmsg: you have to enter a message\n");
 
-
-
-
-
-
-
-
-
+		 char *target = strtok(NULL, " ");
+		 if (!target) {
+			 printf("sendmsg: you have to specify target user\n");
+			 continue;
+		 }
+		 
+		 char *msgStart = strstr(line2, target);
+		 if (!msgStart) {
+			 printf("sendmsg: you have to enter a message\n");
+			 continue;
+		 }
+		 msgStart += strlen(target);
+		 while (*msgStart == ' ') msgStart++; // Skip any spaces after the username
+		 
+		 if (strlen(msgStart) == 0) {
+			 printf("sendmsg: you have to enter a message\n");
+			 continue;
+		 }
+		 
+		 sendmsg(uName, target, msgStart);
 
 		continue;
 	}

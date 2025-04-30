@@ -31,7 +31,9 @@ int main() {
 	while (1) {
 		// TODO:
 		// read requests from serverFIFO
-
+		if (read(server, &req, sizeof(req)) <= 0) {
+			continue; 
+		}
 
 
 
@@ -42,13 +44,17 @@ int main() {
 		// TODO:
 		// open target FIFO and write the whole message struct to the target FIFO
 		// close target FIFO after writing the message
+		target = open(req.target, O_WRONLY);
+		if (target < 0) {
+			perror("Failed to open target FIFO");
+			continue;
+		}
 
+		if (write(target, &req, sizeof(req)) < 0) {
+			perror("Failed to write to target FIFO");
+		}
 
-
-
-
-
-
+		close(target);
 	}
 	close(server);
 	close(dummyfd);
